@@ -1,6 +1,6 @@
-#define _POSIX_SOURCE //SPIEGARE PERCHE'
+#define _POSIX_SOURCE
 #define _GNU_SOURCE
-#define _XOPEN_SOURCE //?
+#define _XOPEN_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,12 +80,12 @@ void handleFd(int fd) {
 	lockRelease(&mtx_set);
 }
 
-usrData* newData(int fd, char* usr) { //USR NON E' NECESSARIO
+usrData* newData(int fd, char* usr) { 
 	usrData* data = calloc(1,sizeof(usrData));
 	//data -> type = 0;
 	data->lastFd = fd;
 	data->lastMsgIdx = 0; //al primo messaggio salvato in history diventa 0
-	data->isOn = 1; //quando lo registro è online (POSSO CANCELLARLO) (O no?)
+	data->isOn = 1; //quando lo registro è online 
 	data->history = calloc(MAXHISTMSGS,sizeof(message_t));
 	return data;
 }
@@ -96,7 +96,7 @@ void registerUsr(char* usr, usrData* data) {
 	lockRelease(&mtx_stats_register);
 	int position = hash_pjw((void*) usr) % NBUCKETS;
 	lockAcquire(&mtx_tab[position]);
-	icl_hash_insert(userTab,(void*) usr, (void*) data); //SE RITORNA NULL E' GIA' REGISTRATO, MODIFICARE REGUSR
+	icl_hash_insert(userTab,(void*) usr, (void*) data); 
 	lockRelease(&mtx_tab[position]);
 	return;
 }
@@ -118,34 +118,25 @@ groupData* newGroupData(char* creator) {
 	head->usr = searchUsr(creator);
 	data -> groupList = head;
 	data -> lastMember = head;
-	//data -> lastMsgIdx = 0;
-	//data -> history = calloc(MAXHISTMSGS,sizeof(message_t));
 	return data;
 }
 
 icl_entry_t* createGroup(char* name, groupData* data) {
 	icl_entry_t* retVal;
 	int position = hash_pjw((void*) name) % GROUPBUCKETS;
-	lockAcquire(&mtx_group_tab[position]); //MOTIVO ALTRA TABELLA: PER NON BLOCCARE LA HASH TABLE UTENTI CON STESSE MUTEX
-	retVal = icl_hash_insert(groupTab,(void*) name,(void*) data); //SE RITORNA NULL E' GIA' REGISTRATO, MODIFICARE REGUSR
+	lockAcquire(&mtx_group_tab[position]); 
+	retVal = icl_hash_insert(groupTab,(void*) name,(void*) data); 
 	lockRelease(&mtx_group_tab[position]);
-	if(retVal == NULL) printf("Retval è NULL\n");
-	printf("Gruppo creato\n");
 	return retVal;
 }
 
 groupData* searchGroup(char* group) {
-	printf("Sto cercando il gruppo %s\n", group);
 	groupData* retVal;
 	int position = hash_pjw((void*) group) % GROUPBUCKETS;
 	lockAcquire(&mtx_group_tab[position]); 
 	retVal = (groupData*) icl_hash_find(groupTab,(void*) group);
-	//printf("RETVAL MEMBRO: %s\n", ((retVal->data)->groupList)->member);
 	lockRelease(&mtx_group_tab[position]);
-	if(!retVal) {
-		printf("RETVAL E' NULL\n");
-		return NULL;
-		}
+	if(!retVal) return NULL;
 	else return retVal;
 }
 
@@ -155,8 +146,6 @@ groupNode* searchMember(char* group, char* name) {
 	groupData* groupEntry = (groupData*) icl_hash_find(groupTab,group);
 	groupNode* currMember = groupEntry->groupList;
 	while(currMember != NULL) {
-		printf("Membro gruppo: %s\n", currMember->member);
-		printf("Name: %s\n", name);
 		if(strncmp(currMember->member,name,MAX_NAME_LENGTH+1) == 0) {
 			lockRelease(&mtx_group_tab[position]);
 			return currMember;
@@ -212,16 +201,13 @@ void connectUsr(char* usr, int fd) {
 	newOn -> fd = fd;
 	newOn -> next = NULL;
 	if(onList == NULL) {
-		printf("Lista utenti connessi vuota\n");
 		onList = newOn;
 		lastOn = onList;	
 	}
 	else {
-		printf("Aggiungo in coda\n");
 		lastOn->next = newOn;
 		lastOn = lastOn -> next;
 	}
-	printf("Connessione completata\n");
 	lockRelease(&mtx_onlist);
 	return;
 }
@@ -270,15 +256,13 @@ int isOn(char* usr) {
 		else search = search -> next;
 	}
 	lockRelease(&mtx_onlist);
-	printf("Ison ritorna\n");
 	return found;
 }
 
 char* checkOnList(int* n) {
 	lockAcquire(&mtx_onlist);
-	*n = numOn; //lo salvo perchè così se poi lo mando all'utente è lo stesso
+	*n = numOn; 
 	char* buf, *ret;
-	printf("NUMERO DI UTENTI ONLINE: %d\n", numOn);
 	if((buf = calloc(numOn,(MAX_NAME_LENGTH+1))) == NULL) {
 		checkErrno("Calloc");
 		exit(EXIT_FAILURE);
@@ -286,7 +270,6 @@ char* checkOnList(int* n) {
 	ret = buf;
 	onUsr* curr = onList;
 	while(curr != NULL) {
-		printf("Utente online: %s\n",curr->name);
 		strncpy(buf,curr->name,MAX_NAME_LENGTH+1);
 		buf += MAX_NAME_LENGTH+1;
 		curr = curr->next;
@@ -301,14 +284,12 @@ void addMember(char* group, char* name, int fd) {
 	newNode -> prev = NULL;
 	strncpy(newNode->member,name,MAX_NAME_LENGTH+1);
 	newNode -> usr = searchUsr(name);
-	newNode -> lastFd = fd; //DEVO AGGIORNARLO AD OGNI CONNESSIONE //mi sa che non serve
+	newNode -> lastFd = fd; 
 	int position = hash_pjw((void*) group) % GROUPBUCKETS;
 	lockAcquire(&mtx_group_tab[position]);
 	groupData* groupEntry = icl_hash_find(groupTab,group);
 	if(groupEntry->groupList == NULL) groupEntry->groupList = newNode;
 	else {
-		printf("ADDMEMBER: RAMO ELSE, utente in lastMember è %s\n", groupEntry->lastMember->member);
-		//groupNode* lastMember = groupEntry -> lastMember;
 		newNode -> prev = groupEntry -> lastMember;
 		groupEntry -> lastMember -> next = newNode;
 		groupEntry -> lastMember =  groupEntry -> lastMember -> next;
@@ -318,7 +299,6 @@ void addMember(char* group, char* name, int fd) {
 }
 
 
-//ipotesi: l'utente è di sicuro già registrato (faccio il controllo prima di chiamare la funzione)
 void sendMsg(char* usr, usrData* data, message_t* clientMsg, int type) {
 	printf("SENDMSG\n");
 	message_t newMsg;
@@ -333,11 +313,6 @@ void sendMsg(char* usr, usrData* data, message_t* clientMsg, int type) {
 	int hashVal = hash_pjw((void*) usr) % NBUCKETS;
 	lockAcquire(&mtx_tab[hashVal]);
 	if(isOn(usr)) {
-		//CONTROLLARE WRITE E SISTEMARE LOCK
-		printf("MANDO MESSAGGIO SENDMSG\n");
-		//writeHeader((long) data->lastFd, &(newMsg.hdr));
-		printf("Header scritto\n");
-		printf("L'FD IN SENDMSG E' %d\n", data->lastFd);
 		writeMsg((long) data->lastFd,&newMsg);
 		lockAcquire(&mtx_stats_messages);
 		if(type == 0) chattyStats.ndelivered++;
@@ -350,7 +325,6 @@ void sendMsg(char* usr, usrData* data, message_t* clientMsg, int type) {
 		else chattyStats.nfilenotdelivered++;
 		lockRelease(&mtx_stats_messages);
 		}
-	printf("Messaggio mandato\n");
 	int nextMsg = data->lastMsgIdx;
 	(data->history[nextMsg]).hdr.op = clientMsg->hdr.op;
 	strncpy((data->history[nextMsg]).hdr.sender,clientMsg->hdr.sender,MAX_NAME_LENGTH+1);
@@ -364,17 +338,11 @@ void sendMsg(char* usr, usrData* data, message_t* clientMsg, int type) {
 }
 
 void sendGroupMsg(char* group, groupData* data, message_t* msg, int type) {
-	printf("SENDGROUPMSG\n");
 	int hashVal = hash_pjw((void*) group) % GROUPBUCKETS;	
 	lockAcquire(&mtx_group_tab[hashVal]);
-	printf("Lock acquisita\n");
 	groupNode* curr = data->groupList;
-	printf("Curr->member è %s\n", curr->member);
 	while(curr != NULL) {
 		lockRelease(&mtx_group_tab[hashVal]);
-		printf("SENDGROUPMSG: %s\n", curr->member);
-		//if(strncmp(curr->member,msg->hdr.sender,MAX_NAME_LENGTH+1)!=0)
-		printf("L'fd dell'utente è %d\n", curr->usr->lastFd);
 		sendMsg(curr->member,curr->usr,msg,type);
 		lockAcquire(&mtx_group_tab[hashVal]);
 		curr = curr->next;
@@ -395,19 +363,16 @@ int closeConnection(int fd) {
 }
 
 
-//CONTROLLARE LE WRITE
+
 void* worker() {
-	printf("Attivato worker\n");
 	sigset_t threadset;
 	memset(&threadset,0,sizeof(sigset_t)); 
 	int err, sig;
 	if(sigfillset(&threadset)==-1) checkErrno("Sigfillset thread stats");
 	if(sigdelset(&threadset,SIGSEGV)==-1) checkErrno("Sigdelset thread stats");
 	if(sigdelset(&threadset,SIGINT)==-1) checkErrno("Sigdelset thread stats");
-	//if(sigdelset(&threadset,SIGTERM)==-1) checkErrno("Sigdelset thread stats");
 	if((err = pthread_sigmask(SIG_SETMASK,&threadset,NULL))!=0) checkError(err,"Set sigmask thread stats");
 	signal(SIGPIPE, SIG_IGN);
-	//dichiarazione variabili
 	err = 0;
 	int reqFd; //fd prelevato dalla coda
 	int rRet, wRet; //valori di ritorno delle read/write
@@ -419,15 +384,13 @@ void* worker() {
 		lockAcquire(&mtx_head);
 		while(head == NULL) { //la coda dei descrittori è vuota
 			condWait(&empty_queue,&mtx_head);
-			//lockAcquire(&mtx_term);
 			if(term == 1) {
 				printf("WORKER: TERM E' 1\n");
-				//lockRelease(&mtx_term);
+
 				lockRelease(&mtx_head);
 				printf("THREAD WORKER TERMINA\n");
 				return (void*) 1; //controllare errore
 				}
-			//lockRelease(&mtx_term);
 		}
 		//thread svegliato da una signal
 		printf("Worker sveglio\n");
@@ -435,7 +398,6 @@ void* worker() {
 		lockRelease(&mtx_head);
 		if((rRet = readHeader(reqFd,&(clientMsg.hdr))) < 0) checkErrno("Lettura header richiesta");
 		else if(rRet == 0) { //client ha chiuso la connessione
-			printf("WORKER CHIUDE LA CONNESSIONE\n");
 			disconnectUsr(reqFd);
 			if(closeConnection(reqFd) != 0) checkErrno("Chiusura connessione");		
 			}
@@ -449,8 +411,7 @@ void* worker() {
 			case GETFILE_OP:
 			case CREATEGROUP_OP:
 			case ADDGROUP_OP:
-			case DELGROUP_OP: {
-				printf("Leggo i dati\n");		
+			case DELGROUP_OP: {		
 				if((rRet = readData(reqFd, &(clientMsg.data))) < 0) checkErrno("Lettura dati richiesta");
 				strncpy(req.receiver,clientMsg.data.hdr.receiver,MAX_NAME_LENGTH+1);
 				 } break;
@@ -461,9 +422,7 @@ void* worker() {
 			req.hashVal = hash_pjw((void*) req.sender) % NBUCKETS;
 			switch(req.op) {
 				case REGISTER_OP: {
-					printf("WORKER: Register OP\n");
 					connectUsr(req.sender,reqFd);
-					printf("Connessione utente completata\n");
 					if(searchUsr(req.sender) != NULL) {	//l'utente è già registrato
 						opRep = OP_NICK_ALREADY;
 						lockAcquire(&mtx_stats_errors);
@@ -480,7 +439,6 @@ void* worker() {
 						strncpy(copy,req.sender,MAX_NAME_LENGTH+1);
 						usrData* data = newData(reqFd,copy);
 						registerUsr(copy,data);
-						printf("Registrazione utente completata\n");
 						opRep = OP_OK;
 						onBuf = checkOnList(&lastNumOn);
 						setHeader(&(replyMsg.hdr),opRep,"");
@@ -493,7 +451,6 @@ void* worker() {
 					handleFd(reqFd);
 					} break;
 			case CONNECT_OP: {
-				printf("WORKER: Connect OP\n");
 				connectUsr(req.sender, reqFd); //lo connetto perchè al ciclo successivo verrà disconnesso
 				if(searchUsr(req.sender) != NULL) {
 					opRep = OP_OK;
@@ -502,15 +459,13 @@ void* worker() {
 					setHeader(&(replyMsg.hdr),opRep,"");
 					setData(&(replyMsg.data),"",onBuf,lastNumOn*(MAX_NAME_LENGTH+1));
 					usrData* usr = searchUsr(req.sender);
-					usr -> lastFd = reqFd; //METTERE IN UNA FUNZIONE A PARTE
+					usr -> lastFd = reqFd; 
 					lockAcquire(&mtx_tab[req.hashVal]);
 					writeMsg(reqFd,&replyMsg);
 					lockRelease(&mtx_tab[req.hashVal]);
-					printf("CONNECTOP: LIBERO MEMORIA\n");
 					free(onBuf);
 					}
 				else {
-					printf("Connect OP: l'utente %s non è registrato\n", req.sender);
 					opRep = OP_NICK_UNKNOWN;
 					lockAcquire(&mtx_stats_errors);
 					chattyStats.nerrors++;
@@ -523,8 +478,6 @@ void* worker() {
 				handleFd(reqFd);
 				} break;
 			case POSTTXT_OP: {
-				printf("WORKER: POSTTXT_OP\n");
-				//strncpy(req.receiver,((clientMsg.data).hdr).receiver,MAX_NAME_LENGTH+1);
 				usrData* recData;
 				groupData* groupRecData;
 				req.size = ((clientMsg.data).hdr).len;
@@ -533,13 +486,11 @@ void* worker() {
 					lockAcquire(&mtx_stats_errors);
 					chattyStats.nerrors++;
 					lockRelease(&mtx_stats_errors);
-					printf("Messaggio troppo lungo\n");
 					}
 				else {
 					recData = searchUsr(req.receiver);
 					groupRecData = searchGroup(req.receiver);
 					if(!recData && !groupRecData) {
-						printf("UTENTE SCONOSCIUTO\n");
 						opRep = OP_NICK_UNKNOWN;
 						lockAcquire(&mtx_stats_errors);
 						chattyStats.nerrors++;
@@ -551,10 +502,7 @@ void* worker() {
 						}
 					else {
 						if(searchMember(req.receiver,req.sender)) {
-							printf("SONO QUI\n");
-							printf("Primo elemento gruppo %s\n", groupRecData->groupList->member);
 							opRep = OP_OK;
-							printf("FD E' %d\n", reqFd);
 							sendGroupMsg(req.receiver,groupRecData,&clientMsg,0);
 							}
 						else opRep = OP_NICK_UNKNOWN; //l'utente non fa parte del gruppo
@@ -565,12 +513,9 @@ void* worker() {
 				writeHeader(reqFd,&(replyMsg.hdr));
 				lockRelease(&mtx_tab[req.hashVal]);
 				free(clientMsg.data.buf);
-				printf("GESTISCO L'FD\n");
 				handleFd(reqFd);
 				} break;
 			case POSTTXTALL_OP: {
-				//strncpy(req.receiver,((clientMsg.data).hdr).receiver,MAX_NAME_LENGTH+1);
-				printf("WORKER: PostTXTALL\n");
 				req.size = ((clientMsg.data).hdr).len; 
 				if(req.size > MAXMSGSIZE) {
 					opRep = OP_MSG_TOOLONG;
@@ -603,25 +548,18 @@ void* worker() {
 				handleFd(reqFd);
 				} break;
 			case POSTFILE_OP: {
-				//strncpy(req.receiver,((clientMsg.data).hdr).receiver,MAX_NAME_LENGTH+1);
-				printf("WORKER: Postfile\n");
 				int len = clientMsg.data.hdr.len;
-				//strncpy(req.receiver,clientMsg.data.hdr.receiver,MAX_NAME_LENGTH+1);
-				//usrData* recData = searchUsr(req.receiver);
 				char* fileName = calloc(1,len);
 				char* newName = NULL;
 				strncpy(fileName,clientMsg.data.buf,len);
 				//ricevo il file
-				printf("Ricevo il file dal client\n");
 				message_t fileMsg;
 				lockAcquire(&mtx_tab[req.hashVal]);
 				if(readData(reqFd,&(fileMsg.data)) <= 0) checkErrno("Lettura messaggio file");
 				lockRelease(&mtx_tab[req.hashVal]);
-				printf("File ricevuto dal client\n");
 				off_t fileSize = fileMsg.data.hdr.len; //filesize è in kilobytes quindi devo dividere per 2^10
-				printf("La dimensione del file è %zu\n", fileSize);
 				if(fileSize / 1024 > MAXFILESIZE) {
-					printf("File troppo grande\n");
+
 					lockAcquire(&mtx_stats_errors);
 					chattyStats.nerrors++;
 					lockRelease(&mtx_stats_errors);
@@ -631,13 +569,12 @@ void* worker() {
 					opRep = OP_OK;
 					usrData* recData;
 					groupData* groupRecData;
-					printf("FILENAME: %s\n", fileName);
 					int slashPosition = -1;
 					for(int i = 0; i < len-1; i++) {
 						if(fileName[i] == '/') slashPosition = i;
 					}
 					if(slashPosition != -1) {
-						int newLen = len-slashPosition+1+2; //2: ./
+						int newLen = len-slashPosition+1+2; 
 						newName = calloc(newLen,sizeof(char));
 						newName[0] = '.';
 						newName[1] = '/';
@@ -647,7 +584,6 @@ void* worker() {
 						newName = calloc(len,sizeof(char));
 						strncpy(newName,fileName,len);
 					}
-					printf("NUOVO FILENAME: %s\n", newName);
 					//memorizzo il file nella cartella: salvo in un buffer la current directory
 					char currDir[PATH_MAX];
 					FILE* file;
@@ -658,16 +594,11 @@ void* worker() {
 						if(mkdir(DIRNAME, 0666 | 0700) != 0) checkErrno("Creazione cartella");
 						if(chdir(DIRNAME) != 0) checkErrno("Spostamento in cartella");
 					}
-					//if((file = fopen(fileName,"w")) == NULL) checkErrno("Creazione file");
-					//if(chmod(fileName, 0700 | 0666)) perror("chmod");
 					int fileop;
 					if((fileop = open(newName, O_CREAT | O_TRUNC | O_RDWR, 0700 | 0666)) < 0) checkErrno("Apertura file");
 					printf("DESCRITTORE DEL FILE: %d\n", fileop);
 					int bw = 0;
 					if((bw = write(fileop,fileMsg.data.buf,fileSize)) <= 0) checkErrno("Write file");
-					//fflush(file);
-					//chiudo il file
-					//if(fclose(file) != 0) checkErrno("Chiusura file\n");
 					close(fileop);
 					if(chdir(currDir) != 0) checkErrno("Spostamento in directory d'origine");
 					//notifico al receiver il file
@@ -702,7 +633,6 @@ void* worker() {
 				handleFd(reqFd);
 				} break;
 			case GETFILE_OP: {
-				//strncpy(req.receiver,((clientMsg.data).hdr).receiver,MAX_NAME_LENGTH+1);
 				int len = clientMsg.data.hdr.len;
 				char fileName[len];
 				strncpy(fileName,clientMsg.data.buf,len);
@@ -743,15 +673,12 @@ void* worker() {
 				handleFd(reqFd);
 				} break;
 			case GETPREVMSGS_OP: {
-				printf("WORKER: GET PREVMSGS\n");
 				usrData* data = searchUsr(req.sender);
 				lockAcquire(&mtx_tab[req.hashVal]);
-				printf("GETPRVMSGS: NUMERO MESSAGGI %d\n", data->lastMsgIdx);
 				int nmsgs = data -> lastMsgIdx;
 				lockRelease(&mtx_tab[req.hashVal]);
 				int buf[1];
 				buf[0] = nmsgs;
-				printf("Buf è %d\n", *buf);
 				size_t prova = *(size_t*) buf;
 				if(nmsgs == 0) { 
 					opRep = OP_FAIL;
@@ -764,7 +691,7 @@ void* worker() {
 					lockRelease(&mtx_tab[req.hashVal]);
 					}
 				else {
-					printf("Numero di messaggi pendenti: %d\n", nmsgs);
+					
 					opRep = OP_OK;
 					char newSen[MAX_NAME_LENGTH+1];
 					char newRec[MAX_NAME_LENGTH+1];
@@ -773,15 +700,13 @@ void* worker() {
 					setHeader(&(replyMsg.hdr),opRep,"");
 					setData(&(replyMsg.data),"", (char*) buf, sizeof(int));
 					lockAcquire(&mtx_tab[req.hashVal]);
-					writeMsg(reqFd,&replyMsg); //CONTROLLI SULLE WRITE
+					writeMsg(reqFd,&replyMsg); 
 					for(int i = 0; i < nmsgs; i++) {
-						printf("MESSAGGIO NUMERO %d\n", i);
 						newOp = (data->history[i]).hdr.op;
 						strncpy(newSen,(data->history[i]).hdr.sender,MAX_NAME_LENGTH+1);
 						strncpy(newRec,(data->history[i]).data.hdr.receiver,MAX_NAME_LENGTH+1);
 						len = (data->history[i]).data.hdr.len;
 						char* msg = calloc(1,len);
-						printf("Il messaggio è %s\n",(data->history[i]).data.buf);
 						strncpy(msg,(data->history[i]).data.buf,len);
 						setHeader(&(replyMsg.hdr),newOp,newSen);
 						setData(&(replyMsg.data),newRec,msg,len);
@@ -805,8 +730,6 @@ void* worker() {
 				handleFd(reqFd);
 				} break;
 			case UNREGISTER_OP: {
-				//devo cancellare la entry nella tabella hash
-				printf("UNREGISTER OP\n");
 				int ret = icl_hash_delete(userTab,req.sender,NULL,NULL);
 				if(ret == -1) {
 					opRep = OP_NICK_UNKNOWN;
@@ -844,11 +767,7 @@ void* worker() {
 				if(closeConnection(reqFd) != 0) checkErrno("Chiusura connessione");
 				} break;
 			case CREATEGROUP_OP: {
-				//strncpy(req.receiver,((clientMsg.data).hdr).receiver,MAX_NAME_LENGTH+1);
-				printf("WORKER: CREATE GROUP\n");
-				//TABELLA HASH: COME KEY HO IL NOME DEL GRUPPO SCRITTA NEL BUFFER DEL MESSAGGIO
-				groupData* data = newGroupData(req.sender); //GESTIRLO CON NULL
-				printf("Dati gruppo creati\n");
+				groupData* data = newGroupData(req.sender);
 				char* copy = calloc(1,MAX_NAME_LENGTH+1);
 				strncpy(copy,req.receiver,MAX_NAME_LENGTH+1);
 				if(createGroup(copy,data) == NULL) opRep = OP_NICK_ALREADY;
@@ -860,8 +779,6 @@ void* worker() {
 				handleFd(reqFd);
 				} break;
 			case ADDGROUP_OP: {
-				//strncpy(req.receiver,((clientMsg.data).hdr).receiver,MAX_NAME_LENGTH+1);
-				printf("WORKER: ADDGROUP\n");
 				if(searchMember(req.receiver,req.sender) != NULL) opRep = OP_NICK_ALREADY; //o op fail?
 				else { 
 					opRep = OP_OK;
@@ -874,8 +791,6 @@ void* worker() {
 				handleFd(reqFd);
 				} break;
 			case DELGROUP_OP: {
-				//strncpy(req.receiver,((clientMsg.data).hdr).receiver,MAX_NAME_LENGTH+1);
-				printf("WORKER: DELGROUP\n");
 				if(deleteMember(req.receiver,req.sender) == 0) opRep = OP_FAIL;
 				else opRep = OP_OK;
 				setHeader(&(replyMsg.hdr),opRep,"");
@@ -892,12 +807,9 @@ void* worker() {
 	lockAcquire(&mtx_term);
 	if(term==1) {
 		lockRelease(&mtx_term);
-		printf("WORKER STA USCENDO\n");
 		return (void*) 1;
 		}
 	lockRelease(&mtx_term);
 		
-	}
-
-	  
+	}	  
 }
