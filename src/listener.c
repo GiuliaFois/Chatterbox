@@ -1,5 +1,5 @@
-#define _POSIX_SOURCE //SPIEGARE PERCHE'
-#define _GNU_SOURCE //???????
+#define _POSIX_SOURCE
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,9 +30,6 @@
 #define UNIX_PATH_MAX  64
 #endif
 
-//gestione numero massimo di connessioni: accetto tutti ma nel worker
-//se numconnections > valore restituisco un messaggio di errore
-//tipo OP_FAIL
 
 connectionNode* head;
 connectionNode* tail;
@@ -114,7 +111,7 @@ void* listener() {
 	if(sfd > fd_num) fd_num=sfd;
 	struct timeval tsel; //timer per la select
 	tsel.tv_sec = 0;
-	tsel.tv_usec = 1000; //controllare timer
+	tsel.tv_usec = 1000; 
 	FD_ZERO(&set);
 	FD_ZERO(&checkset);
 	FD_SET(sfd,&set);
@@ -125,7 +122,6 @@ void* listener() {
 		for(int currfd = 0; currfd <= fd_num; currfd ++) {
 			if(FD_ISSET(currfd,&rdset)) {
 				if(currfd == sfd) {
-					printf("Accettata nuova connessione\n");
 					cfd = accept(sfd,NULL,0);
 					lockAcquire(&mtx_set);
 					FD_SET(cfd,&set);
@@ -133,13 +129,11 @@ void* listener() {
 					lockRelease(&mtx_set);
 				}
 				else if(!FD_ISSET(currfd,&checkset)) {
-					printf("Richiesta su connessione già esistente\n");
 					lockAcquire(&mtx_set);
 					FD_CLR(currfd,&set);
 					FD_SET(currfd,&checkset);
 					if(currfd == fd_num) fd_num --;
 					lockRelease(&mtx_set);
-					printf("Inserisco in testa\n");
 					lockAcquire(&mtx_head);
 					connectionInsert(currfd);
 					condSignal(&empty_queue);
@@ -147,14 +141,7 @@ void* listener() {
 				}
 			}
 		}
-	//lockAcquire(&mtx_term);
-	if(term==1) {
- 			printf("LISTENER: TERM E' 1\n");
-			//lockRelease(&mtx_term);
-			printf("LISTENER STA USCENDO\n");
-			return (void*) 1; 
-			}
-	//lockRelease(&mtx_term);
+	if(term==1) return (void*) 1; 
 	}
 }
 
