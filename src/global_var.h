@@ -9,8 +9,8 @@
 #ifndef GLOBAL_VAR_H_
 #define GLOBAL_VAR_H_
 
-#define NBUCKETS 50 //va qui?
-#define GROUPBUCKETS 20 //INIZIALIZZARLE
+#define NBUCKETS 50 
+#define GROUPBUCKETS 20 
 
 #include <pthread.h>
 #include <sys/select.h>
@@ -32,7 +32,7 @@
 
 typedef struct connectionNode_ {
 	int fd;
-	struct _connectionNode* prev; //IMPLEMENTARE DOUBLE LINKED LIST
+	struct _connectionNode* prev; 
 	struct _connectionNode* next;
 } connectionNode;
 
@@ -54,8 +54,8 @@ extern pthread_mutex_t mtx_stats_register;
 extern pthread_mutex_t mtx_stats_connect;
 extern pthread_mutex_t mtx_stats_messages;
 extern pthread_mutex_t mtx_stats_errors;
-extern pthread_mutex_t mtx_tab[NBUCKETS]; //CAMBIARE NOME
-extern pthread_mutex_t mtx_group_tab[GROUPBUCKETS]; //INIZIALIZZARE
+extern pthread_mutex_t mtx_tab[NBUCKETS]; 
+extern pthread_mutex_t mtx_group_tab[GROUPBUCKETS]; 
 extern pthread_cond_t empty_queue;
 
 int term; //per la terminazione. inizializzata a 0 nel main
@@ -87,14 +87,6 @@ typedef struct _groupNode {
 	struct _groupNode* next;
 } groupNode;
 
-//TABELLA HASH DEI GRUPPI E' LA STESSA DEGLI UTENTI
-//C'E' SOLO UN IDENTIFICATORE TYPE IN ENTRAMBI I DATA, SE E' 0 E' UN UTENTE, SE E' 1 E' UN GRUPPO
-//(DEVO CAMBIARE I NOMI, MAGARI CI METTO ENTRY)
-//POSTTXT: SE E' UN UTENTE MI COMPORTO NORMALMENTE, SE E' UN GRUPPO (TYPE = 1) INVIO IL TXT A TUTTI GLI UTENTI IN QUEL GRUPPO
-//CONTROLLARE GESTIONE CONNESSIONE-DISCONNESSIONE
-
-//NO, FACCIO DUE TABELLE, TANTO LA RICERCA IN HASH AVENDO LA CHIAVE NON E' COSTOSA
-//IN POSTTXT SE NON TROVO LA CHIAVE TRA GLI UTENTI LA CERCO NEI GRUPPI E VIA
 
 typedef struct _groupData {
 	groupNode* groupList;
