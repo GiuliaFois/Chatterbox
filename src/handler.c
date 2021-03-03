@@ -1,4 +1,4 @@
-#define _POSIX_SOURCE //sennò mi dava il warning dei segnali
+#define _POSIX_SOURCE
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -51,15 +51,11 @@ void* handler() {
 			printf("Ricevuto segnale SIGPIPE\n");
 		}
 		if(sig == SIGQUIT || sig == SIGINT || sig == SIGTERM) {
-			printf("RICEVUTO SEGNALE SIGQUIT\n");
-			//lockAcquire(&mtx_term);
 			term=1;
-			//lockRelease(&mtx_term);
 			lockAcquire(&mtx_head);
 			pthread_cond_broadcast(&empty_queue);
 			lockRelease(&mtx_head);
 			if(remove(UNIXPATH) == -1) checkErrno("Rimozione file");
-			printf("File rimosso\n");
 			icl_entry_t* toFree;
 			message_t* hist;
 			groupNode* groupUsr;
@@ -88,7 +84,6 @@ void* handler() {
 			}
 			icl_hash_destroy(userTab,&free,&free);
 			icl_hash_destroy(groupTab,&free,&free);
-			printf("STATSTHREAD ESCE\n");
 			return (void*) 1; 
 			}
 		}
