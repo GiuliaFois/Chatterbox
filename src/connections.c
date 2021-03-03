@@ -102,14 +102,12 @@ int readData(long fd, message_data_t *data) {
 			if(errno != EINTR) return bret;
 			}
 		else {
-			printf("READDATA: Byte header letti %d\n", bret);
 			br += bret;
 			btr -= (size_t) bret;
 			}
 
 		}
 	len = data->hdr.len;
-	printf("READDATA: LEN E' %d\n", len);
 	data->buf = calloc(1,len);
 	char* original = data->buf;
 	btr = len;
@@ -117,7 +115,6 @@ int readData(long fd, message_data_t *data) {
 	while(btr > 0) {
 		if((bret = read(fd, (void*) data->buf,btr)) <= 0) {
 			if(errno != EINTR) return bret;
-			else printf("Interrotta\n");
 			}
 		else {
 			data->buf += bret;
@@ -230,7 +227,6 @@ int sendData(long fd, message_data_t *msg) {
 	int bw = 0; //numero di bytes scritti
 	int bret;
 	size_t len = msg->hdr.len;
-	printf("SENDDATA: 1 LEN E' %d\n", len);
 	while(btow > 0) {
 		if((bret = write(fd, (void*) (&(msg->hdr)+bw) ,btow)) <= 0) {
 			if(errno != EINTR) return bret;
@@ -250,7 +246,6 @@ int sendData(long fd, message_data_t *msg) {
 			if(errno != EINTR) return bret;
 			}
 		else {
-			printf("SENDDATA INTERROTTA: NE HO MANDATI %d\n", bret);
 			btow -= (size_t) bret;
 			msg->buf += bret;
 		}
